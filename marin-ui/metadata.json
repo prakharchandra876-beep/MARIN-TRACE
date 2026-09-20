@@ -1,0 +1,8 @@
+{
+  "name": "OilWatch - AI Maritime Oil Spill Detection & Vessel Attribution",
+  "description": "Interactive command-center prototype for satellite SAR oil spill detection, drift trajectory reconstruction, AIS vessel attribution, and dark vessel investigation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

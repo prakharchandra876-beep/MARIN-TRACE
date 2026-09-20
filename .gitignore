@@ -1,0 +1,9 @@
+# Python / Backend
+__pycache__/
+*.h5
+*.pt
+.env
+
+# Node / Frontend
+node_modules/
+dist/
