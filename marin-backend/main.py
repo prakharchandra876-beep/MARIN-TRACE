@@ -1,52 +1,68 @@
-from fastapi import FastAPI, UploadFile, File
-import tensorflow as tf
-import numpy as np
-import cv2
-import io
+import asyncio
+import json
+import websockets
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-print("Loading U-Net SAR Segmentation Model...")
-model = tf.keras.models.load_model('unet_oilspill.h5', compile=False)
-print("Model loaded successfully!")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Define the exact image size the U-Net expects
-IMG_SIZE = 512
-
-def preprocess_image(image_bytes):
-    # 1. Convert bytes to a numpy array
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    # 2. Decode the image into grayscale (SAR is single-channel)
-    img = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
-    # 3. Resize to 512x512
-    img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-    # 4. Normalize pixel values to be between 0 and 1
-    img = img / 255.0
-    # 5. Expand dimensions to match the model's expected input shape (Batch, Height, Width, Channels)
-    img = np.expand_dims(img, axis=-1)
-    img = np.expand_dims(img, axis=0)
-    return img
-
-@app.get("/")
-def read_root():
-    return {"status": "MARIN-TRACE API Active", "model": "U-Net Loaded"}
-
-@app.post("/predict")
-async def predict_spill(file: UploadFile = File(...)):
-    # Read the image file from the request
-    image_data = await file.read()
+# Paste your free aisstream.io key here
+AISSTREAM_API_KEY = "f6a601242d9c057c2b1a350283f5559b2d1b5b43"
+@app.websocket("/api/live-vessels")
+async def live_vessels(frontend_ws: WebSocket):
+    await frontend_ws.accept()
+    print("🟢 React Frontend Connected. Tapping into global AIS satellite stream...")
     
-    # Preprocess it
-    processed_img = preprocess_image(image_data)
-    
-    # Run the U-Net prediction
-    prediction_mask = model.predict(processed_img)
-    
-    # For now, let's just return a success message and a mock confidence score
-    # Later, we will translate this mask into a GeoJSON polygon
-    return {
-        "status": "success", 
-        "message": "Spill segmented successfully",
-        "mock_confidence": 91.4,
-        "filename": file.filename
-    }
+    try:
+        # Connect to the real global AIS firehose
+        async with websockets.connect("wss://stream.aisstream.io/v0/stream") as ais_ws:
+            
+            # Subscribe to the entire globe
+            subscribe_message = {
+                "APIKey": AISSTREAM_API_KEY,
+                "BoundingBoxes": [[[-90, -180], [90, 180]]], 
+                "FilterMessageTypes": ["PositionReport"]
+            }
+            await ais_ws.send(json.dumps(subscribe_message))
+            print("📡 Connected to AisStream! Watching for real ships...")
+
+            while True:
+                # Receive real data from satellite
+                message = await ais_ws.recv()
+                data = json.loads(message)
+                
+                if data["MessageType"] == "PositionReport":
+                    report = data["Message"]["PositionReport"]
+                    mmsi = str(report["UserID"])
+                    
+                    # 🚀 HACKATHON TRICK: Hijack one real ship to act as our primary suspect
+                    # Just replace this number with any MMSI you see printing in the terminal!
+                    if mmsi == "PUT_A_REAL_MMSI_HERE":
+                        mmsi = "244670249"
+
+                    # Send the real telemetry straight to your React map
+                    payload = {
+                        "type": "LIVE_AIS_UPDATE",
+                        "mmsi": mmsi,
+                        "lat": report["Latitude"],
+                        "lng": report["Longitude"],
+                        "speed_knots": report["Sog"],
+                        "heading": report["TrueHeading"]
+                    }
+                    
+                    await frontend_ws.send_text(json.dumps(payload))
+                    
+    except Exception as e:
+        print(f"⚠️ Stream disconnected: {e}")
+
+@app.post("/detect")
+async def detect_spill():
+    return {"status": "AI endpoint placeholder active"}

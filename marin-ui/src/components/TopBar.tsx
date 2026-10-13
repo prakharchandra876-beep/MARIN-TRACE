@@ -48,7 +48,13 @@ export const TopBar: React.FC<TopBarProps> = ({
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setCurrentTime(now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC');
+      const day = now.getUTCDate();
+      const month = now.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' });
+      const year = now.getUTCFullYear();
+      const hours = String(now.getUTCHours()).padStart(2, '0');
+      const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+      
+      setCurrentTime(`${day} ${month} ${year}, ${hours}:${minutes} UTC`);
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -56,7 +62,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   }, []);
 
   return (
-    <header className="w-full bg-[#080d1a] border-b border-slate-800/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 select-none">
+    <header className="w-full bg-[#080d1a] border-b border-slate-800/80 px-3 py-2.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-50 select-none">
       {/* Brand & Case Info */}
       <div className="flex items-center gap-4">
         <button
@@ -76,7 +82,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 LIVE AI SAR
               </span>
             </div>
-            <p className="text-[10px] text-slate-400 tracking-wide font-sans">
+            <p className="text-xs text-slate-400 tracking-wide font-sans">
               Maritime Spill Intelligence & Attribution
             </p>
           </div>
@@ -138,7 +144,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
 
         {/* LIVE FASTAPI TELEMETRY Notice */}
-        <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-400" title="Live FastAPI data connection established">
+        <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400" title="Live FastAPI data connection established">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
           <span className="font-bold tracking-wide">LIVE FASTAPI TELEMETRY</span>
         </div>
@@ -199,7 +205,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         {/* Live UTC Clock */}
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-xs font-mono text-slate-300">
           <Clock className="w-3.5 h-3.5 text-cyan-400" />
-          <span>{currentTime || 'Syncing...'}</span>
+          <span className="text-sm font-medium">{currentTime || 'Syncing...'}</span>
         </div>
 
         {/* Notifications Icon & Popover */}

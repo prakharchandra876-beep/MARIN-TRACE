@@ -94,10 +94,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="w-full md:w-64 lg:w-72 bg-[#090e1b] border-r border-slate-800 flex flex-col justify-between shrink-0 select-none">
       <div className="p-3 space-y-3">
         <div className="px-3 py-1 flex items-center justify-between text-slate-400">
-          <span className="text-[11px] font-bold uppercase tracking-wider font-mono">
+          <span className="text-xs font-bold uppercase tracking-wider font-mono">
             Pipeline Workflow
           </span>
-          <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">
+          <span className="text-xs bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono">
             7 Modules
           </span>
         </div>
@@ -133,14 +133,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-slate-500 font-bold">
+                      <span className="text-xs font-mono text-slate-500 font-bold">
                         {item.stepNumber}
                       </span>
                       <span className="text-xs font-semibold text-slate-100 group-hover:text-white">
                         {item.label}
                       </span>
                     </div>
-                    <p className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                   <p className="text-xs text-slate-400 max-w-[160px] whitespace-normal leading-tight mt-0.5">
                       {item.description}
                     </p>
                   </div>
@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center gap-1.5">
                   {item.badge && (
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      className={`text-xs font-bold px-1.5 py-0.5 rounded ${
                         item.badge === 'Alert'
                           ? 'bg-amber-950 text-amber-300 border border-amber-800'
                           : 'bg-slate-800 text-cyan-300'
@@ -176,15 +176,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Maritime Regulatory Compliance Notice */}
       <div className="p-3 m-3 rounded-xl bg-slate-900/90 border border-slate-800/90 space-y-2 text-xs">
-        <div className="flex items-center gap-2 text-slate-300 font-semibold text-[11px]">
+        <div className="flex items-center gap-2 text-slate-300 font-semibold text-xs">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>MARPOL 73/78 Compliance</span>
         </div>
-        <p className="text-[10px] text-slate-400 leading-relaxed">
+        <p className="text-xs text-slate-400 leading-relaxed">
           Attribution algorithms use physics-based Lagrangian drift modeling and Hausdorff distance metrics.
           All designations are designated as <strong className="text-slate-300">"Candidate / Requires Investigation"</strong> for non-prejudicial evidential handling.
         </p>
-        <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800">
+        <div className="pt-1 flex items-center justify-between text-xs text-slate-500 border-t border-slate-800">
           <span>NTRO / SIH 2024</span>
           <span className="font-mono text-cyan-400">UNCLOS Art. 217</span>
         </div>

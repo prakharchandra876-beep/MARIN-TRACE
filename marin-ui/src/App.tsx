@@ -26,6 +26,7 @@ import { AnalysisProgressModal } from './components/AnalysisProgressModal';
 import { CookieBanner } from './components/CookieBanner';
 
 import { ShieldCheck, Lock, ExternalLink, Globe } from 'lucide-react';
+import { generateFIR } from './utils/generateFIR';
 
 export default function App() {
   // Navigation State
@@ -37,23 +38,33 @@ export default function App() {
   const [cases, setCases] = useState<ActiveCase[]>(ACTIVE_CASES);
   
   // NEW INTEGRATION: Fetch live data from FastAPI
+  // NEW INTEGRATION: Fetch live data from FastAPI
   useEffect(() => {
     const fetchLiveSpillData = async () => {
       try {
         const response = await fetch('http://127.0.0.1:8000/detect', {
           method: 'POST',
         });
+        
+        // If the backend AI endpoint isn't built yet (404), use the mock data safely!
+        if (!response.ok) {
+          console.log("⚠️ FastAPI /detect endpoint not ready. Using mock SAR polygon.");
+          return; 
+        }
+
         const liveData = await response.json();
 
-        // Update the active case with the live GeoJSON polygon from FastAPI
-        setCases(prevCases => {
-          const updatedCases = [...prevCases];
-          updatedCases[0].spill.polygon = liveData.geometry.coordinates[0];
-          updatedCases[0].spill.confidence = liveData.properties.confidence;
-          return updatedCases;
-        });
+        // Only update if we actually got real geometry data back
+        if (liveData && liveData.geometry) {
+          setCases(prevCases => {
+            const updatedCases = [...prevCases];
+            updatedCases[0].spill.polygon = liveData.geometry.coordinates[0];
+            updatedCases[0].spill.confidence = liveData.properties.confidence;
+            return updatedCases;
+          });
+          console.log("FastAPI Connection Successful!", liveData);
+        }
         
-        console.log("FastAPI Connection Successful!", liveData);
       } catch (error) {
         console.error("FastAPI Connection Failed. Is the backend running?", error);
       }
@@ -323,6 +334,7 @@ export default function App() {
             <button onClick={() => navigateToPage('landing')} className="hover:text-cyan-400 transition-colors">Home</button>
             <button onClick={() => navigateToPage('dashboard', 'overview')} className="hover:text-cyan-400 transition-colors">Command Center</button>
             <button onClick={() => navigateToPage('settings')} className="hover:text-cyan-400 transition-colors">Settings</button>
+            <button onClick={() => generateFIR(selectedVessel)}  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mt-4">  Generate Legal FIR (PDF)</button>
             <button onClick={() => { setLegalSection('privacy'); navigateToPage('legal'); }} className="hover:text-cyan-400 transition-colors">Privacy Policy</button>
             <button onClick={() => { setLegalSection('terms'); navigateToPage('legal'); }} className="hover:text-cyan-400 transition-colors">Terms</button>
           </div>

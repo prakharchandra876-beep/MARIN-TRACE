@@ -66,10 +66,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <FileText className="w-3.5 h-3.5 text-cyan-400" />
             <span>View Case Report</span>
           </button>
+          {/* Fix 13: Changed competing cyan button to a secondary dark style */}
           <button
             onClick={handleRun}
             disabled={isAnalyzing}
-            className="flex items-center gap-1.5 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg text-xs shadow-lg shadow-cyan-500/20 transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-medium rounded-lg text-xs transition-all"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>{isAnalyzing ? 'Simulating...' : 'Re-Run Pipeline'}</span>
@@ -85,7 +86,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           className="bg-slate-900/90 border border-slate-800 hover:border-rose-500/40 p-3.5 rounded-xl cursor-pointer transition-all group"
         >
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Spills Detected</span>
+            <span className="text-xs font-medium uppercase tracking-wider">Spills Detected</span>
             <div className="p-1 rounded bg-rose-500/10 text-rose-400 group-hover:bg-rose-500/20">
               <ShieldAlert className="w-4 h-4" />
             </div>
@@ -96,9 +97,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               LINEAR SLICK
             </span>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+          <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
             <span>Area: {spill.areaKm2} km²</span>
-            <span className="text-[9px] text-slate-500 font-mono">MOCK</span>
+            <span className="text-[10px] text-slate-500 font-mono">MOCK</span>
           </div>
         </div>
 
@@ -108,7 +109,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 p-3.5 rounded-xl cursor-pointer transition-all group"
         >
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Detection Conf.</span>
+            <span className="text-xs font-medium uppercase tracking-wider">Detection Conf.</span>
             <div className="p-1 rounded bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20">
               <Percent className="w-4 h-4" />
             </div>
@@ -121,9 +122,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               HIGH
             </span>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+          {/* Fix 10: Increased text size for sensor data */}
+          <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
             <span>Sentinel-1 SAR C-band</span>
-            <span className="text-[9px] text-slate-500 font-mono">YOLOv8</span>
+            <span className="text-[10px] text-slate-500 font-mono">YOLOv8</span>
           </div>
         </div>
 
@@ -133,7 +135,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           className="bg-slate-900/90 border border-slate-800 hover:border-cyan-500/40 p-3.5 rounded-xl cursor-pointer transition-all group"
         >
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-medium uppercase tracking-wider">AIS Candidates</span>
+            <span className="text-xs font-medium uppercase tracking-wider">AIS Candidates</span>
             <div className="p-1 rounded bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20">
               <Ship className="w-4 h-4" />
             </div>
@@ -146,9 +148,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               24H WINDOW
             </span>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+          <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
             <span>±15 km Corridor</span>
-            <span className="text-[9px] text-slate-500 font-mono">MOCK AIS</span>
+            <span className="text-[10px] text-slate-500 font-mono">MOCK AIS</span>
           </div>
         </div>
 
@@ -158,7 +160,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           className="bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 p-3.5 rounded-xl cursor-pointer transition-all group"
         >
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-medium uppercase tracking-wider">High-Risk Vessels</span>
+            <span className="text-xs font-medium uppercase tracking-wider">High-Risk Vessels</span>
             <div className="p-1 rounded bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20">
               <AlertTriangle className="w-4 h-4" />
             </div>
@@ -171,9 +173,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               REQUIRES INVEST.
             </span>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+          <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
             <span className="truncate">Top: {activeCase.vessels[0]?.name || 'None'}</span>
-            <span className="text-[9px] text-slate-500 font-mono">MOCK</span>
+            <span className="text-[10px] text-slate-500 font-mono">MOCK</span>
           </div>
         </div>
 
@@ -183,7 +185,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           className="bg-slate-900/90 border border-slate-800 hover:border-red-500/40 p-3.5 rounded-xl cursor-pointer transition-all group col-span-2 md:col-span-1"
         >
           <div className="flex items-center justify-between text-slate-400 mb-1">
-            <span className="text-[11px] font-medium uppercase tracking-wider">Dark Vessels</span>
+            <span className="text-xs font-medium uppercase tracking-wider">Dark Vessels</span>
             <div className="p-1 rounded bg-red-500/10 text-red-400 group-hover:bg-red-500/20">
               <Radar className="w-4 h-4" />
             </div>
@@ -196,9 +198,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               SAR ANOMALY
             </span>
           </div>
-          <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-between">
+          <div className="text-xs text-slate-400 mt-1 flex items-center justify-between">
             <span>1 Gap / 1 No-AIS</span>
-            <span className="text-[9px] text-slate-500 font-mono">MOCK</span>
+            <span className="text-[10px] text-slate-500 font-mono">MOCK</span>
           </div>
         </div>
       </div>
@@ -208,15 +210,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
-            <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+            {/* Fix 11: Removed all-caps and made font semibold */}
+            <h2 className="text-base font-semibold text-slate-200">
               Tactical Maritime Operational Picture
             </h2>
             <span className="text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded font-mono">
               Sentinel-1 + AIS Trajectories
             </span>
           </div>
-          <span className="text-xs text-slate-400">
-            Click any vessel marker or polygon for full telemetry
+          <span className="text-xs font-medium text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-full inline-flex items-center gap-2">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+            Click any marker for full telemetry
           </span>
         </div>
 
@@ -245,7 +249,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                       Candidate / Requires Investigation
                     </span>
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-mono">
+                  {/* Fix 12: Increased vessel metadata text size to text-xs */}
+                  <p className="text-xs text-slate-400 font-mono">
                     IMO: {activeCase.vessels[0].imo} &bull; MMSI: {activeCase.vessels[0].mmsi} &bull; Flag: {activeCase.vessels[0].flag}
                   </p>
                 </div>
@@ -300,7 +305,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div>
               <h3 className="text-sm font-bold text-white">Reconstructed Origin & Drift Physics</h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 OpenDrift backward trajectory & oceanographic forcing
               </p>
             </div>
@@ -335,7 +340,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </div>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-slate-950/40 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+          <div className="p-2.5 rounded-lg bg-slate-950/40 border border-slate-800/80 text-xs text-slate-400 space-y-1">
             <div className="flex items-center justify-between text-slate-300 font-medium">
               <span>Forward Dispersal Risk (T+24h):</span>
               <span className="text-rose-400 font-bold">Medium Coastal Proximity</span>

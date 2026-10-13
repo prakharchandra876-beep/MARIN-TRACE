@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { ActiveCase, VesselAttributionData, DarkVesselData } from '../types';
-import { Layers, Eye, EyeOff, ZoomIn, ZoomOut, Compass, Wind, Navigation } from 'lucide-react';
+import { useLiveAIS } from '../hooks/useLiveAIS';
+import { VesselTrustScore } from './VesselTrustScore';
+import { generateFIR } from '../utils/generateFIR';
+import { Layers, Eye, EyeOff, ZoomIn, ZoomOut, Compass, Wind, Navigation, X } from 'lucide-react';
 
 interface MapViewProps {
   activeCase: ActiveCase;
@@ -37,6 +40,8 @@ export const MapView: React.FC<MapViewProps> = ({
   });
 
   const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const { livePositions, isConnected } = useLiveAIS();
+  const [selectedTrustVessel, setSelectedTrustVessel] = useState<any | null>(null);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -84,7 +89,6 @@ export const MapView: React.FC<MapViewProps> = ({
     const map = mapRef.current;
     if (!map) return;
 
-    // Feature group to clear and re-render
     // Remove existing custom layers (keep tile layer)
     map.eachLayer((layer) => {
       if (!(layer instanceof L.TileLayer)) {
@@ -120,7 +124,6 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       `);
 
-      // Centerline Skeleton
       if (spill.centerline && spill.centerline.length > 0) {
         L.polyline(spill.centerline, {
           color: '#f43f5e',
@@ -129,7 +132,6 @@ export const MapView: React.FC<MapViewProps> = ({
         }).addTo(map);
       }
 
-      // Centroid Marker
       const slickIcon = L.divIcon({
         className: 'custom-slick-marker',
         html: `
@@ -151,7 +153,6 @@ export const MapView: React.FC<MapViewProps> = ({
     if (layers.probableSource && drift.probableSource) {
       const src = drift.probableSource;
       
-      // Uncertainty radius circle
       L.circle([src.lat, src.lng], {
         radius: src.uncertaintyRadiusKm * 1000,
         color: '#f59e0b',
@@ -169,7 +170,6 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       `);
 
-      // Source origin marker
       const sourceIcon = L.divIcon({
         className: 'custom-src-marker',
         html: `
@@ -256,7 +256,6 @@ export const MapView: React.FC<MapViewProps> = ({
         const isSelected = selectedVessel?.id === vessel.id;
         const isPrimarySuspect = vessel.rank === 1;
 
-        // Vessel Trajectory
         if (vessel.trajectory && vessel.trajectory.length > 0) {
           const trackLatLngs = vessel.trajectory.map(t => [t.lat, t.lng] as [number, number]);
           const trackColor = isPrimarySuspect ? '#ef4444' : isSelected ? '#38bdf8' : '#64748b';
@@ -268,8 +267,10 @@ export const MapView: React.FC<MapViewProps> = ({
           }).addTo(map);
         }
 
-        // Current / Latest Vessel Location
-        const latestPt = vessel.trajectory?.[vessel.trajectory.length - 1] || { lat: vessel.trajectory?.[0]?.lat || 53.6, lng: vessel.trajectory?.[0]?.lng || 4.2 };
+        const liveData = livePositions[vessel.mmsi];
+        const latestPt = liveData 
+          ? { lat: liveData.lat, lng: liveData.lng } 
+          : (vessel.trajectory?.[vessel.trajectory.length - 1] || { lat: vessel.trajectory?.[0]?.lat || 53.6, lng: vessel.trajectory?.[0]?.lng || 4.2 });
         const markerColorClass = vessel.finalRiskScore >= 80 ? 'bg-red-500 border-red-200' : vessel.finalRiskScore >= 50 ? 'bg-amber-500 border-amber-200' : 'bg-emerald-500 border-emerald-200';
 
         const vesselIcon = L.divIcon({
@@ -294,6 +295,8 @@ export const MapView: React.FC<MapViewProps> = ({
           if (onSelectVessel) {
             onSelectVessel(vessel);
           }
+          // Set the state to show the overlay
+          setSelectedTrustVessel(vessel);
         });
 
         vMarker.bindPopup(`
@@ -305,6 +308,7 @@ export const MapView: React.FC<MapViewProps> = ({
               </span>
             </div>
             <div class="text-slate-300"><strong>IMO / MMSI:</strong> ${vessel.imo} / ${vessel.mmsi}</div>
+            <div class="text-slate-300"><strong>Live Speed:</strong> ${liveData ? liveData.speed + ' knots' : 'Offline'}</div>
             <div class="text-slate-300"><strong>Type:</strong> ${vessel.vesselType}</div>
             <div class="text-slate-300"><strong>Flag:</strong> ${vessel.flag} (${vessel.flagCode})</div>
             <div class="text-slate-300"><strong>Dist to Source:</strong> <span class="text-cyan-300 font-mono font-semibold">${vessel.distanceToSourceKm} km</span></div>
@@ -313,7 +317,7 @@ export const MapView: React.FC<MapViewProps> = ({
               Status: ${vessel.status}
             </div>
             <div class="text-slate-400 text-[10px] italic">
-              Note: Historical AIS values labeled MOCK. Click vessel row in Attribution tab for full profile.
+              Note: Historical AIS values labeled MOCK. Click vessel to view Trust Score.
             </div>
           </div>
         `);
@@ -326,7 +330,7 @@ export const MapView: React.FC<MapViewProps> = ({
         const isGap = dv.status === 'AIS Gap';
         const isNoAis = dv.status === 'No AIS';
 
-        if (!isGap && !isNoAis) return; // Verified matched targets don't need warning rings
+        if (!isGap && !isNoAis) return; 
 
         const darkIcon = L.divIcon({
           className: 'custom-dark-vessel-marker',
@@ -372,8 +376,32 @@ export const MapView: React.FC<MapViewProps> = ({
         `);
       });
     }
+    // 8. THE LIVE SATELLITE FIREHOSE (Draw all unknown real ships)
+    if (livePositions) {
+      Object.entries(livePositions).forEach(([mmsi, data]) => {
+        // Skip drawing a green dot if it perfectly matched our suspect ship
+        const isSuspect = activeCase.vessels.some(v => v.mmsi.toString() === mmsi);
+        if (isSuspect) return;
 
-  }, [activeCase, layers, selectedVessel, selectedDarkVessel]);
+        L.circleMarker([data.lat, data.lng], {
+          radius: 3,
+          color: '#10b981', // Emerald green
+          fillColor: '#059669',
+          fillOpacity: 0.9,
+          weight: 1
+        })
+        .addTo(map)
+        .bindPopup(`
+          <div class="p-1 text-xs font-mono">
+            <div class="text-emerald-400 font-bold mb-1">LIVE RADAR CONTACT</div>
+            <div>MMSI: ${mmsi}</div>
+            <div>Speed: ${data.speed} kts</div>
+            <div>Heading: ${data.heading}°</div>
+          </div>
+        `);
+      });
+    }
+  }, [activeCase, layers, selectedVessel, selectedDarkVessel, livePositions]);
 
   // Center on selected vessel if updated
   useEffect(() => {
@@ -395,132 +423,61 @@ export const MapView: React.FC<MapViewProps> = ({
   return (
     <div className={`relative w-full ${heightClassName} bg-[#0b111e] rounded-xl overflow-hidden border border-slate-800 shadow-2xl`}>
       {/* Map Canvas */}
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <div ref={mapContainerRef} className="w-full h-full z-0" />
 
       {/* Top Map Controls Overlay */}
       <div className="absolute top-3 left-3 z-[400] flex items-center gap-2">
-        {/* Layer Toggle Button */}
         <div className="relative">
           <button
             id="map-layer-toggle-btn"
             onClick={() => setShowLayerPanel(!showLayerPanel)}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-medium shadow-lg hover:bg-slate-800 transition-colors"
-            aria-label="Toggle map layers panel"
           >
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             <span>Map Layers</span>
             <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
           </button>
 
-          {/* Layer Options Dropdown */}
           {showLayerPanel && (
             <div className="absolute top-10 left-0 w-64 bg-slate-900/95 backdrop-blur-md border border-slate-700 rounded-xl p-3 shadow-2xl space-y-2 text-xs">
               <div className="flex items-center justify-between border-b border-slate-800 pb-1.5 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                 <span>Active Tactical Layers</span>
-                <button
-                  onClick={() => setShowLayerPanel(false)}
-                  className="text-slate-400 hover:text-white"
-                  aria-label="Close layer panel"
-                >
-                  ✕
-                </button>
+                <button onClick={() => setShowLayerPanel(false)} className="text-slate-400 hover:text-white">✕</button>
               </div>
-
+              
+              {/* Checkboxes mapping layers state... */}
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-rose-500/60 border border-rose-400"></span>
-                  Detected Spill Slick & Mask
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.spill}
-                  onChange={(e) => setLayers({ ...layers, spill: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-rose-500/60 border border-rose-400"></span>Detected Spill Slick & Mask</span>
+                <input type="checkbox" checked={layers.spill} onChange={(e) => setLayers({ ...layers, spill: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
-
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-1.5 bg-cyan-400"></span>
-                  Backward Drift (Source Trail)
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.backwardDrift}
-                  onChange={(e) => setLayers({ ...layers, backwardDrift: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-3 h-1.5 bg-cyan-400"></span>Backward Drift (Source Trail)</span>
+                <input type="checkbox" checked={layers.backwardDrift} onChange={(e) => setLayers({ ...layers, backwardDrift: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
-
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-1.5 bg-purple-400"></span>
-                  Forward Drift (Dispersal)
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.forwardDrift}
-                  onChange={(e) => setLayers({ ...layers, forwardDrift: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-3 h-1.5 bg-purple-400"></span>Forward Drift (Dispersal)</span>
+                <input type="checkbox" checked={layers.forwardDrift} onChange={(e) => setLayers({ ...layers, forwardDrift: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
-
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full border border-amber-400 bg-amber-500/30"></span>
-                  Probable Source Region
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.probableSource}
-                  onChange={(e) => setLayers({ ...layers, probableSource: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-amber-400 bg-amber-500/30"></span>Probable Source Region</span>
+                <input type="checkbox" checked={layers.probableSource} onChange={(e) => setLayers({ ...layers, probableSource: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
-
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-red-500 text-[8px] text-white flex items-center justify-center font-bold">1</span>
-                  AIS Vessel Trajectories
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.vessels}
-                  onChange={(e) => setLayers({ ...layers, vessels: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-red-500 text-[8px] text-white flex items-center justify-center font-bold">1</span>AIS Vessel Trajectories</span>
+                <input type="checkbox" checked={layers.vessels} onChange={(e) => setLayers({ ...layers, vessels: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
-
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-amber-400 text-black flex items-center justify-center text-[9px] font-bold">!</span>
-                  Dark Vessels (SAR Radar)
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.darkVessels}
-                  onChange={(e) => setLayers({ ...layers, darkVessels: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-amber-400 text-black flex items-center justify-center text-[9px] font-bold">!</span>Dark Vessels (SAR Radar)</span>
+                <input type="checkbox" checked={layers.darkVessels} onChange={(e) => setLayers({ ...layers, darkVessels: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
-
               <label className="flex items-center justify-between text-slate-200 cursor-pointer hover:bg-slate-800/60 p-1.5 rounded">
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-cyan-300"></span>
-                  Lagrangian Particles
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layers.particles}
-                  onChange={(e) => setLayers({ ...layers, particles: e.target.checked })}
-                  className="accent-cyan-500 rounded"
-                />
+                <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-cyan-300"></span>Lagrangian Particles</span>
+                <input type="checkbox" checked={layers.particles} onChange={(e) => setLayers({ ...layers, particles: e.target.checked })} className="accent-cyan-500 rounded" />
               </label>
             </div>
           )}
         </div>
 
-        {/* Environmental Summary Badge */}
         <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-lg text-xs font-mono text-slate-300">
           <div className="flex items-center gap-1 text-slate-400">
             <Wind className="w-3.5 h-3.5 text-cyan-400" />
@@ -534,62 +491,61 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       </div>
 
-      {/* Map Navigation Controls (Top Right) */}
       <div className="absolute top-3 right-3 z-[400] flex flex-col gap-1.5">
-        <button
-          id="map-zoom-in-btn"
-          onClick={handleZoomIn}
-          className="p-2 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg shadow hover:bg-slate-800 transition-colors"
-          title="Zoom In"
-          aria-label="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          id="map-zoom-out-btn"
-          onClick={handleZoomOut}
-          className="p-2 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg shadow hover:bg-slate-800 transition-colors"
-          title="Zoom Out"
-          aria-label="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button
-          id="map-reset-btn"
-          onClick={handleResetView}
-          className="p-2 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg shadow hover:bg-slate-800 transition-colors"
-          title="Reset to Spill Centroid"
-          aria-label="Reset View"
-        >
-          <Navigation className="w-4 h-4 text-cyan-400" />
-        </button>
+        <button onClick={handleZoomIn} className="p-2 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg shadow hover:bg-slate-800 transition-colors"><ZoomIn className="w-4 h-4" /></button>
+        <button onClick={handleZoomOut} className="p-2 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg shadow hover:bg-slate-800 transition-colors"><ZoomOut className="w-4 h-4" /></button>
+        <button onClick={handleResetView} className="p-2 bg-slate-900/90 backdrop-blur-md border border-slate-700 text-slate-200 hover:text-white rounded-lg shadow hover:bg-slate-800 transition-colors"><Navigation className="w-4 h-4 text-cyan-400" /></button>
       </div>
 
-      {/* Bottom Map Legend */}
-      <div className="absolute bottom-3 left-3 z-[400] bg-slate-950/85 backdrop-blur-md border border-slate-800/80 rounded-lg p-2 text-[11px] text-slate-300 max-w-sm hidden md:block">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-rose-500"></span>
-            <span>Spill Slick</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-cyan-400 border-dashed"></span>
-            <span>Backward Drift</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 bg-purple-400 border-dashed"></span>
-            <span>Forward Drift</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full border border-amber-400 bg-amber-500/40"></span>
-            <span>Probable Source</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded bg-red-500"></span>
-            <span>Suspect Vessel</span>
-          </div>
+      <div className="absolute top-36 right-3 z-[400] bg-slate-900/90 backdrop-blur-md border border-slate-700 rounded-lg p-3 shadow-xl text-xs text-slate-300 hidden md:block">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-rose-500"></span><span>Spill Slick</span></div>
+          <div className="flex items-center gap-2"><span className="w-4 h-0.5 bg-cyan-400 border-dashed"></span><span>Backward Drift</span></div>
+          <div className="flex items-center gap-2"><span className="w-4 h-0.5 bg-purple-400 border-dashed"></span><span>Forward Drift</span></div>
+          <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-amber-400 bg-amber-500/40"></span><span>Probable Source</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded border border-red-200 bg-red-500 flex items-center justify-center text-white text-[8px] font-bold">1</div><span>AIS Suspect</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full border border-red-500 bg-red-950/80 text-red-300 flex items-center justify-center text-[8px] font-bold">!</div><span>Dark Vessel</span></div>
         </div>
       </div>
+
+      {/* --- HUD OVERLAY --- */}
+      {selectedTrustVessel && (
+        <div className="absolute top-4 left-[20%] z-[1000] animate-in fade-in slide-in-from-top-4 duration-300 shadow-2xl">
+          <div className="relative pointer-events-auto">
+            {/* Close Button */}
+            <button 
+              onClick={() => setSelectedTrustVessel(null)}
+              className="absolute -top-3 -right-3 z-[1050] p-1.5 bg-slate-800 border border-slate-600 hover:bg-slate-700 text-white rounded-full shadow-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            {/* The Trust Score Component */}
+            <VesselTrustScore 
+              vesselName={selectedTrustVessel.name || "UNKNOWN VESSEL"} 
+              imo={`MMSI: ${selectedTrustVessel.mmsi}`}
+              trustScore={selectedTrustVessel.mmsi === activeCase?.suspectMmsi ? 34 : 88}
+              flag={selectedTrustVessel.flag || "Panama"}
+              metrics={{
+                aisReliability: selectedTrustVessel.mmsi === activeCase?.suspectMmsi ? 42 : 95,
+                spillProximityHistory: selectedTrustVessel.mmsi === activeCase?.suspectMmsi ? 20 : 90,
+                flagStateRisk: selectedTrustVessel.mmsi === activeCase?.suspectMmsi ? 65 : 85,
+                portDetentions: selectedTrustVessel.mmsi === activeCase?.suspectMmsi ? 30 : 99
+              }}
+              history={selectedTrustVessel.mmsi === activeCase?.suspectMmsi ? [
+                { date: "12 Oct 2026", event: "SAR Anomaly: Oil Slick Correlation", severity: "high" },
+                { date: "04 Aug 2026", event: "AIS Transponder Gap (4.2 hours)", severity: "high" },
+                { date: "15 May 2026", event: "Tokyo MOU Port Detention", severity: "medium" }
+              ] : [
+                { date: "12 Oct 2026", event: "Routine Transit - No Anomalies", severity: "low" },
+                { date: "10 Oct 2026", event: "Port State Control Inspection - Passed", severity: "low" }
+              ]}
+            />
+          </div>
+        </div>
+      )}
+      {/* --- END HUD OVERLAY --- */}
+
     </div>
   );
 };
